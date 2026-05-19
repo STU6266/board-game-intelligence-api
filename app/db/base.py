@@ -6,5 +6,11 @@ class Base(DeclarativeBase):
 
 
 # Import all models here so Alembic can detect them.
-from app.models import Category, Game, Mechanic, Rating  # noqa: E402, F401
-   
+from app.models import (  # noqa: E402, F401
+    Category,
+    Game,
+    ImportError,
+    ImportRun,
+    Mechanic,
+    Rating,
+)
