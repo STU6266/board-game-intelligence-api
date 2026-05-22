@@ -32,6 +32,7 @@ Completed foundation and first API read flow:
 - Local demo seed script for API development and testing
 - Local XML fixture representing a BoardGameGeek-style game response
 - XML parser service with automated unit tests for game, rating and linked metadata extraction
+- Data quality validation service with automated tests for invalid and incomplete imported game data
 
 Current demo records are development-only seed data. Importing real board game data from the BoardGameGeek XML API is planned for a later phase.
 
@@ -168,9 +169,30 @@ Run the automated tests:
 pytest -v
 ```
 
-Current parser tests verify:
+Current data quality tests verify:
 
-- extraction of core game fields
-- extraction of ratings, categories, mechanics, designers and publishers
-- safe handling of missing rating data
-- validation failure when a game has no primary name
+- valid parsed data passes validation
+- invalid player ranges are rejected
+- invalid playtime and rating values are rejected
+- missing optional data creates warnings without blocking import
+
+## Data Quality Validation
+
+Before parsed external data is written to the database, the project validates important business and consistency rules.
+
+Current validation errors include:
+
+- minimum player count greater than maximum player count
+- negative playtime values
+- minimum playtime greater than maximum playtime
+- negative minimum age
+- rating values outside the valid range of 0 to 10
+- complexity values outside the valid range of 0 to 5
+- negative user rating counts
+
+Incomplete but still usable data is handled as a warning rather than a blocking error. Current warnings include:
+
+- missing description
+- missing rating data
+
+This validation layer prepares the project for a controlled synchronization process in which invalid imported records can be rejected and logged instead of silently being stored in PostgreSQL.
