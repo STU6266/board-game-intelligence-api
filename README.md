@@ -30,6 +30,8 @@ Completed foundation and first API read flow:
 - Health and database health endpoints
 - Read endpoints for listing games and retrieving game details
 - Local demo seed script for API development and testing
+- Local XML fixture representing a BoardGameGeek-style game response
+- XML parser service with automated unit tests for game, rating and linked metadata extraction
 
 Current demo records are development-only seed data. Importing real board game data from the BoardGameGeek XML API is planned for a later phase.
 
@@ -132,3 +134,43 @@ python -m scripts.seed_games
 ```
 
 The script can safely be run more than once. Existing demo games are skipped instead of being inserted again.
+
+## XML Parser Development
+
+The project includes a local XML fixture that represents the structure of a BoardGameGeek-style game detail response:
+
+```text
+sample_data/bgg_thing_sample.xml
+```
+
+The parser service converts XML data into validated Python objects before future database synchronization:
+
+```text
+app/services/bgg_parser.py
+```
+
+Currently extracted data includes:
+
+- game ID and primary name
+- publication year, player count, playtime and minimum age
+- rating and complexity information
+- overall rank
+- categories and mechanics
+- designers and publishers
+
+The local XML fixture is used during development so parser behavior can be tested without depending on live API calls or external rate limits.
+
+## Testing
+
+Run the automated tests:
+
+```bash
+pytest -v
+```
+
+Current parser tests verify:
+
+- extraction of core game fields
+- extraction of ratings, categories, mechanics, designers and publishers
+- safe handling of missing rating data
+- validation failure when a game has no primary name
