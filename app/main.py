@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.api.v1.endpoints.games import router as games_router
 from app.api.v1.endpoints.health import router as health_router
 
 app = FastAPI(
@@ -9,6 +10,7 @@ app = FastAPI(
 )
 
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
+app.include_router(games_router, prefix="/api/v1", tags=["Games"])
 
 
 @app.get("/")
@@ -18,5 +20,3 @@ def root():
         "docs": "/docs",
         "health": "/api/v1/health",
     }
-
-

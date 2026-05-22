@@ -19,12 +19,19 @@ This project is built as a professional portfolio project focused on:
 
 ## Current Status
 
-Phase 1:
+Completed foundation and first API read flow:
 
-- FastAPI app setup
-- PostgreSQL with Docker Compose
-- Health endpoint
-- Basic project structure
+- FastAPI application with versioned API routes
+- PostgreSQL development database running through Docker Compose
+- SQLAlchemy database connection and dependency setup
+- Alembic migrations for the initial relational data model
+- Core tables for games, ratings, categories and mechanics
+- Import tracking tables for future external data synchronization
+- Health and database health endpoints
+- Read endpoints for listing games and retrieving game details
+- Local demo seed script for API development and testing
+
+Current demo records are development-only seed data. Importing real board game data from the BoardGameGeek XML API is planned for a later phase.
 
 ## Tech Stack
 
@@ -43,3 +50,85 @@ Create and activate a virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+Start the API:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Open the interactive API documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## Health Check
+
+```text
+GET /api/v1/health
+GET /api/v1/health/db
+```
+
+Expected response for the application health endpoint:
+
+```json
+{
+  "status": "ok",
+  "service": "board-game-intelligence-api"
+}
+```
+
+Expected response for the database health endpoint:
+
+```json
+{
+  "status": "ok",
+  "database": "connected"
+}
+```
+
+## Available Endpoints
+
+### Health
+
+```text
+GET /api/v1/health
+GET /api/v1/health/db
+```
+
+### Games
+
+```text
+GET /api/v1/games
+GET /api/v1/games/{id}
+```
+
+`GET /api/v1/games` returns a list of stored board games with basic metadata and rating information.
+
+`GET /api/v1/games/{id}` returns a detailed game record including rating data, categories and mechanics.
+
+## Development Seed Data
+
+For development testing, the project includes a small seed script with clearly marked demo board games. The records use negative `bgg_id` values so they do not conflict with future imported BoardGameGeek records.
+
+Run the seed script:
+
+```bash
+python -m scripts.seed_games
+```
+
+The script can safely be run more than once. Existing demo games are skipped instead of being inserted again.
