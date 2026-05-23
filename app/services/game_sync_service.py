@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from app.models import Category, Game, ImportError, ImportRun, Mechanic, Rating
 from app.schemas.bgg import BggGameData
 from app.schemas.sync import SyncResult
-from app.services.bgg_parser import parse_bgg_thing_file
+from app.services.bgg_client import BggClient
+from app.services.bgg_parser import parse_bgg_thing_file, parse_bgg_thing_xml
 from app.services.data_quality_service import validate_bgg_game_data
 
 
@@ -86,91 +87,150 @@ def _create_sync_result(import_run: ImportRun) -> SyncResult:
     )
 
 
-def sync_game_from_xml_file(db: Session, file_path: str | Path) -> SyncResult:
+def _sync_parsed_game(
+    db: Session,
+    data: BggGameData,
+    *,
+    source: str,
+    message: str,
+) -> SyncResult:
     import_run = ImportRun(
-        source="local_xml_fixture",
+        source=source,
         status="started",
-        message=f"Sync started from {file_path}.",
+        message=message,
     )
     db.add(import_run)
     db.flush()
 
-    try:
-        data = parse_bgg_thing_file(file_path)
-        import_run.games_found = 1
+    quality_result = validate_bgg_game_data(data)
+    import_run.games_found = 1
 
-        quality_result = validate_bgg_game_data(data)
-
-        if not quality_result.is_valid:
-            import_run.status = "completed_with_errors"
-            import_run.games_skipped = 1
-            import_run.errors_count = len(quality_result.errors)
-            import_run.finished_at = datetime.now(timezone.utc)
-            import_run.message = "Game was not stored because data quality validation failed."
-
-            for issue in quality_result.errors:
-                db.add(
-                    ImportError(
-                        import_run_id=import_run.id,
-                        bgg_id=data.bgg_id,
-                        error_type="data_quality",
-                        error_message=f"{issue.field}: {issue.message}",
-                    )
-                )
-
-            db.commit()
-            db.refresh(import_run)
-
-            return _create_sync_result(import_run)
-
-        existing_game = db.scalar(
-            select(Game).where(Game.bgg_id == data.bgg_id)
-        )
-
-        if existing_game is None:
-            game = Game(
-                bgg_id=data.bgg_id,
-                name=data.name,
-            )
-            db.add(game)
-            _apply_game_data(db, game, data)
-            import_run.games_created = 1
-        else:
-            _apply_game_data(db, existing_game, data)
-            import_run.games_updated = 1
-
-        import_run.status = "completed"
+    if not quality_result.is_valid:
+        import_run.status = "completed_with_errors"
+        import_run.games_skipped = 1
+        import_run.errors_count = len(quality_result.errors)
         import_run.finished_at = datetime.now(timezone.utc)
-        import_run.message = "Game synchronized successfully."
+        import_run.message = "Game was not stored because data quality validation failed."
+
+        for issue in quality_result.errors:
+            db.add(
+                ImportError(
+                    import_run_id=import_run.id,
+                    bgg_id=data.bgg_id,
+                    error_type="data_quality",
+                    error_message=f"{issue.field}: {issue.message}",
+                )
+            )
 
         db.commit()
         db.refresh(import_run)
 
         return _create_sync_result(import_run)
 
-    except Exception as exc:
-        db.rollback()
+    existing_game = db.scalar(
+        select(Game).where(Game.bgg_id == data.bgg_id)
+    )
 
-        failed_run = ImportRun(
+    if existing_game is None:
+        game = Game(
+            bgg_id=data.bgg_id,
+            name=data.name,
+        )
+        db.add(game)
+        _apply_game_data(db, game, data)
+        import_run.games_created = 1
+    else:
+        _apply_game_data(db, existing_game, data)
+        import_run.games_updated = 1
+
+    import_run.status = "completed"
+    import_run.finished_at = datetime.now(timezone.utc)
+    import_run.message = "Game synchronized successfully."
+
+    db.commit()
+    db.refresh(import_run)
+
+    return _create_sync_result(import_run)
+
+
+def _log_failed_sync(
+    db: Session,
+    *,
+    source: str,
+    bgg_id: int | None,
+    error_message: str,
+) -> SyncResult:
+    db.rollback()
+
+    failed_run = ImportRun(
+        source=source,
+        status="failed",
+        finished_at=datetime.now(timezone.utc),
+        games_skipped=1,
+        errors_count=1,
+        message="Sync failed before the game could be stored.",
+    )
+    db.add(failed_run)
+    db.flush()
+
+    db.add(
+        ImportError(
+            import_run_id=failed_run.id,
+            bgg_id=bgg_id,
+            error_type="sync_error",
+            error_message=error_message,
+        )
+    )
+
+    db.commit()
+    db.refresh(failed_run)
+
+    return _create_sync_result(failed_run)
+
+
+def sync_game_from_xml_file(db: Session, file_path: str | Path) -> SyncResult:
+    try:
+        data = parse_bgg_thing_file(file_path)
+
+        return _sync_parsed_game(
+            db,
+            data,
             source="local_xml_fixture",
-            status="failed",
-            finished_at=datetime.now(timezone.utc),
-            games_skipped=1,
-            errors_count=1,
-            message="Sync failed before the game could be stored.",
-        )
-        db.add(failed_run)
-        db.flush()
-
-        db.add(
-            ImportError(
-                import_run_id=failed_run.id,
-                error_type="sync_error",
-                error_message=str(exc),
-            )
+            message=f"Sync started from {file_path}.",
         )
 
-        db.commit()
-        db.refresh(failed_run)
+    except Exception as exc:
+        return _log_failed_sync(
+            db,
+            source="local_xml_fixture",
+            bgg_id=None,
+            error_message=str(exc),
+        )
 
-        return _create_sync_result(failed_run)
+
+def sync_game_from_bgg_api(
+    db: Session,
+    bgg_id: int,
+    *,
+    client: BggClient | None = None,
+) -> SyncResult:
+    bgg_client = client or BggClient()
+
+    try:
+        xml_content = bgg_client.get_game_xml(bgg_id)
+        data = parse_bgg_thing_xml(xml_content)
+
+        return _sync_parsed_game(
+            db,
+            data,
+            source="boardgamegeek_api",
+            message=f"Sync started for BGG game ID {bgg_id}.",
+        )
+
+    except Exception as exc:
+        return _log_failed_sync(
+            db,
+            source="boardgamegeek_api",
+            bgg_id=bgg_id,
+            error_message=str(exc),
+        )

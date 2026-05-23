@@ -13,9 +13,15 @@ class Settings(BaseSettings):
 
     database_url: str
 
+    bgg_base_url: str = "https://boardgamegeek.com/xmlapi2"
+    bgg_api_token: str | None = None
+    bgg_request_delay_seconds: float = 5.0
+    bgg_request_timeout_seconds: float = 15.0
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
 

@@ -7,8 +7,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.base import Base
 from app.models import Game, ImportError, ImportRun
-from app.services.game_sync_service import sync_game_from_xml_file
 
+from app.services.game_sync_service import (
+    sync_game_from_bgg_api,
+    sync_game_from_xml_file,
+)
 
 SAMPLE_FILE = Path("sample_data/bgg_thing_sample.xml")
 
@@ -132,3 +135,27 @@ def test_sync_logs_technical_error_when_xml_file_does_not_exist(
 
     assert import_error is not None
     assert import_error.error_type == "sync_error"
+
+class FakeBggClient:
+    def get_game_xml(self, bgg_id: int) -> str:
+        assert bgg_id == 999001
+        return SAMPLE_FILE.read_text(encoding="utf-8")
+
+
+def test_sync_from_bgg_api_stores_game_using_client_response(
+    db_session: Session,
+) -> None:
+    result = sync_game_from_bgg_api(
+        db_session,
+        999001,
+        client=FakeBggClient(),
+    )
+
+    game = db_session.scalar(
+        select(Game).where(Game.bgg_id == 999001)
+    )
+
+    assert result.status == "completed"
+    assert result.games_created == 1
+    assert game is not None
+    assert game.name == "Sample Quest Island"
