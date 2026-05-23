@@ -33,6 +33,8 @@ Completed foundation and first API read flow:
 - Local XML fixture representing a BoardGameGeek-style game response
 - XML parser service with automated unit tests for game, rating and linked metadata extraction
 - Data quality validation service with automated tests for invalid and incomplete imported game data
+- Analytical report logic with family score, complexity, playtime and age-group labels
+- Report endpoints for family-friendly and low-complexity/high-rating game recommendations
 
 Current demo records are development-only seed data. Importing real board game data from the BoardGameGeek XML API is planned for a later phase.
 

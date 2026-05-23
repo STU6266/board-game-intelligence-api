@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import DateTime, Integer, String, Text
@@ -12,13 +12,28 @@ class ImportRun(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
-    source: Mapped[str] = mapped_column(String(100), nullable=False, default="boardgamegeek")
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="started")
+    source: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default="boardgamegeek",
+    )
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="started",
+    )
 
     search_query: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     games_found: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     games_created: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
