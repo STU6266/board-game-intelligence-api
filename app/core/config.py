@@ -1,15 +1,10 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "Board Game Intelligence API"
     app_env: str = "development"
-
-    postgres_db: str
-    postgres_user: str
-    postgres_password: str
-    postgres_host: str = "localhost"
-    postgres_port: int = 5432
 
     database_url: str
 
@@ -23,6 +18,18 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def use_psycopg_driver(cls, value: str) -> str:
+        if value.startswith("postgresql://"):
+            return value.replace(
+                "postgresql://",
+                "postgresql+psycopg://",
+                1,
+            )
+
+        return value
 
 
 settings = Settings()
