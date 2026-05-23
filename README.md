@@ -2,7 +2,30 @@
 
 Board Game Intelligence API is a backend and data integration portfolio project built with Python, FastAPI and PostgreSQL.
 
-The application is designed to retrieve board game data from the BoardGameGeek XML API2, transform XML responses into validated relational data, store synchronization history and expose REST endpoints for browsing games and generating analytical recommendations.
+The application processes BoardGameGeek-style XML data, transforms external responses into validated relational records, stores synchronization history and exposes REST endpoints for browsing games and generating analytical recommendations.
+
+## Live Demo
+
+Interactive Swagger/OpenAPI documentation:
+
+```text
+https://board-game-intelligence-api.onrender.com/docs
+```
+
+Useful live endpoints:
+
+```text
+GET /api/v1/health
+GET /api/v1/health/db
+GET /api/v1/games
+GET /api/v1/reports/family-friendly
+GET /api/v1/reports/low-complexity-high-rating
+GET /api/v1/import-runs
+```
+
+The deployed API includes development seed data and a synchronized local XML fixture so the game and analytical report endpoints can be explored directly in the browser.
+
+Real BoardGameGeek synchronization through the live sync endpoint requires an authorized API token configured securely on the server.
 
 ## Why I Built This
 
@@ -10,7 +33,7 @@ I built this project to demonstrate backend development skills beyond simple CRU
 
 The project focuses on:
 
-- integrating an external XML API
+- integrating an external XML API client
 - parsing and transforming third-party data
 - validating imported data before storage
 - designing a normalized relational database
@@ -19,15 +42,18 @@ The project focuses on:
 - exposing documented REST endpoints
 - calculating analytical recommendation reports
 - writing automated tests for important application logic
+- deploying a documented backend API with a live database connection
 
-The board game topic gives the project a practical domain: users can understand whether a stored game is family-friendly, easy to learn, highly rated or suitable for a short game session.
+The board game topic gives the project a practical domain: users can explore whether a stored game is family-friendly, easy to learn, highly rated or suitable for a short game session.
 
 ## Current Project Status
 
 Implemented:
 
 - FastAPI application with versioned API routes
-- PostgreSQL development database through Docker Compose
+- live Render deployment with interactive Swagger/OpenAPI documentation
+- PostgreSQL database integration
+- local PostgreSQL development database through Docker Compose
 - SQLAlchemy database connection and session dependency
 - Alembic database migrations
 - normalized database models for games, ratings, categories and mechanics
@@ -42,11 +68,11 @@ Implemented:
 - duplicate prevention through update-by-`bgg_id` logic
 - analytical report service and recommendation endpoints
 - BoardGameGeek HTTP client with token configuration, request throttling and error handling
-- live synchronization endpoint prepared for authorized BGG API access
+- live synchronization endpoint prepared for authorized BoardGameGeek API access
 - import-run history endpoints
 - automated unit test suite with 36 passing tests
 
-A real live BoardGameGeek import requires an authorized API token configured locally. Without a token, the application can still be developed and tested through the local XML fixture and mocked client responses.
+A real live BoardGameGeek import requires an authorized API token configured securely in the execution environment. Without a token, the deployed API can still demonstrate stored sample data, analytical reports and import-history endpoints. Development and automated tests use a local XML fixture and mocked client responses.
 
 ## Tech Stack
 
@@ -59,6 +85,7 @@ A real live BoardGameGeek import requires an authorized API token configured loc
 - HTTPX
 - Docker Compose
 - Pytest
+- Render
 
 ## Architecture
 
@@ -100,6 +127,72 @@ app/core/          Application configuration
 tests/             Automated unit tests
 scripts/           Local development scripts
 sample_data/       XML fixture used during development and testing
+```
+
+## Project Structure
+
+```text
+board-game-intelligence-api/
+├─ app/
+│  ├─ api/
+│  │  ├─ deps.py
+│  │  └─ v1/
+│  │     └─ endpoints/
+│  │        ├─ games.py
+│  │        ├─ health.py
+│  │        ├─ reports.py
+│  │        └─ sync.py
+│  ├─ core/
+│  │  └─ config.py
+│  ├─ db/
+│  │  ├─ base.py
+│  │  └─ session.py
+│  ├─ models/
+│  │  ├─ category.py
+│  │  ├─ game.py
+│  │  ├─ import_error.py
+│  │  ├─ import_run.py
+│  │  ├─ mechanic.py
+│  │  └─ rating.py
+│  ├─ repositories/
+│  │  ├─ game_repository.py
+│  │  ├─ report_repository.py
+│  │  └─ sync_repository.py
+│  ├─ schemas/
+│  │  ├─ bgg.py
+│  │  ├─ data_quality.py
+│  │  ├─ game.py
+│  │  ├─ report.py
+│  │  └─ sync.py
+│  ├─ services/
+│  │  ├─ bgg_client.py
+│  │  ├─ bgg_parser.py
+│  │  ├─ data_quality_service.py
+│  │  ├─ game_sync_service.py
+│  │  └─ report_service.py
+│  └─ main.py
+├─ alembic/
+│  └─ versions/
+├─ docs/
+│  └─ portfolio-summary.md
+├─ sample_data/
+│  └─ bgg_thing_sample.xml
+├─ scripts/
+│  ├─ seed_games.py
+│  └─ sync_sample_game.py
+├─ tests/
+│  └─ unit/
+│     ├─ test_bgg_client.py
+│     ├─ test_bgg_parser.py
+│     ├─ test_data_quality_service.py
+│     ├─ test_game_sync_service.py
+│     └─ test_report_service.py
+├─ .env.example
+├─ .python-version
+├─ alembic.ini
+├─ docker-compose.yml
+├─ requirements.txt
+└─ README.md
 ```
 
 ## Data Model
@@ -159,7 +252,13 @@ Errors are stored separately and linked to the related import run. This makes un
 
 ## API Endpoints
 
-Interactive Swagger documentation is available locally at:
+Interactive Swagger documentation is available online at:
+
+```text
+https://board-game-intelligence-api.onrender.com/docs
+```
+
+For local development, Swagger documentation is available at:
 
 ```text
 http://127.0.0.1:8000/docs
@@ -213,9 +312,9 @@ GET  /api/v1/import-runs
 GET  /api/v1/import-runs/{import_run_id}
 ```
 
-`POST /api/v1/sync/games/{bgg_id}` requests current game data from BoardGameGeek, validates the parsed record and creates or updates the stored game.
+`POST /api/v1/sync/games/{bgg_id}` requests game data through the BoardGameGeek client, validates the parsed record and creates or updates the stored game.
 
-This endpoint requires a valid local `BGG_API_TOKEN`.
+This endpoint requires a valid `BGG_API_TOKEN` configured in the execution environment.
 
 `GET /api/v1/import-runs` returns recorded synchronization attempts.
 
@@ -302,7 +401,7 @@ Later synchronization of same ID   → existing game is updated
 
 This prevents duplicate records during repeated imports.
 
-### Live BGG Integration
+### Live BoardGameGeek Integration
 
 The live client is implemented in:
 
@@ -313,13 +412,13 @@ app/services/bgg_client.py
 It supports:
 
 - BoardGameGeek `thing` requests with statistics
-- BoardGameGeek `search` requests for future expansion
+- BoardGameGeek `search` requests prepared for future expansion
 - Bearer token authorization
 - configurable timeout
 - configurable delay between requests
 - controlled handling of temporary service errors
 
-A registered and authorized BoardGameGeek API token is required to perform real live imports.
+The live synchronization endpoint is implemented and covered by automated tests using mocked client responses. Performing real external imports requires an authorized BoardGameGeek API token.
 
 ## Analytical Reports
 
@@ -338,6 +437,17 @@ The score considers:
 Games receive higher scores when they are well rated, comparatively easy to learn, suitable for younger players, playable within a reasonable duration and usable with family-sized groups.
 
 Very high complexity and very long playtime reduce the score.
+
+### Low-Complexity / High-Rating Report
+
+This report identifies games that are both positively rated and comparatively accessible.
+
+Current conditions:
+
+```text
+average_rating >= 7.0
+average_weight <= 2.5
+```
 
 ### Derived Labels
 
@@ -376,7 +486,7 @@ Up to 7 years     → Kids
 
 Install these tools before starting:
 
-- Python 3.12 or compatible Python 3 version
+- Python 3.12
 - Docker with Docker Compose
 - Git
 
@@ -386,8 +496,6 @@ Install these tools before starting:
 git clone https://github.com/STU6266/board-game-intelligence-api.git
 cd board-game-intelligence-api
 ```
-
-Replace `<repository-url>` with the public GitHub repository URL.
 
 ### 2. Create a Virtual Environment
 
@@ -480,6 +588,26 @@ Open Swagger documentation:
 http://127.0.0.1:8000/docs
 ```
 
+## Deployment
+
+The API is deployed as a Render Web Service with a PostgreSQL database.
+
+Live Swagger documentation:
+
+```text
+https://board-game-intelligence-api.onrender.com/docs
+```
+
+Deployment configuration includes:
+
+- application environment variables managed through Render
+- PostgreSQL connection through `DATABASE_URL`
+- Alembic migrations executed during deployment
+- API secrets kept outside the repository
+- local fixture and development seed data available for demonstration endpoints
+
+The live deployment demonstrates API browsing, analytical reports and import history without requiring visitors to configure local dependencies.
+
 ## Testing
 
 Run the full automated test suite:
@@ -510,9 +638,11 @@ Tests do not require real BoardGameGeek network access or a real API token.
 
 ## API Source and Usage Note
 
-Board game data accessed through the live synchronization feature is provided by BoardGameGeek through its XML API2.
+Board game data accessed through the optional live synchronization feature is provided through the BoardGameGeek XML API2.
 
-The live integration is implemented, but real execution requires an authorized BoardGameGeek application token configured locally. Any public-facing deployment displaying BoardGameGeek data should follow the applicable BoardGameGeek XML API terms and attribution requirements.
+The live integration is implemented, but real execution requires an authorized BoardGameGeek application token configured securely in the execution environment. Any public-facing use of BoardGameGeek data should follow the applicable BoardGameGeek API terms and attribution requirements.
+
+The current public demonstration can be explored without live BoardGameGeek imports because it includes development seed data and a locally synchronized XML fixture.
 
 ## Project Scope
 
@@ -526,13 +656,14 @@ Included in the MVP:
 - documented REST endpoints
 - analytical reports
 - automated tests
+- live API deployment with Swagger documentation
 
 Possible future extensions:
 
+- configure authorized live BoardGameGeek synchronization for the deployed API
 - persist designers and publishers in dedicated relational tables
 - expose a public game-search synchronization workflow
 - add pagination and advanced filters to game endpoints
-- deploy the API publicly with securely configured BGG authorization
 - add CI test execution through GitHub Actions
 
 ## What I Learned
@@ -547,3 +678,4 @@ This project strengthened my understanding of:
 - designing useful API reports from stored data
 - testing external integrations without relying on live network requests
 - handling configuration and secrets safely through environment variables
+- preparing and deploying a backend API with a cloud-hosted PostgreSQL database
