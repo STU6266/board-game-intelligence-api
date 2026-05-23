@@ -383,7 +383,7 @@ Install these tools before starting:
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/STU6266/board-game-intelligence-api.git
 cd board-game-intelligence-api
 ```
 
